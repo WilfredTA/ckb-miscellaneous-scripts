@@ -6,16 +6,18 @@ CFLAGS := -fPIC -O3 -nostdinc -nostdlib -nostartfiles -fvisibility=hidden -I dep
 LDFLAGS := -Wl,-static -fdata-sections -ffunction-sections -Wl,--gc-sections
 SECP256K1_SRC := deps/secp256k1/src/ecmult_static_pre_context.h
 MOLC := moleculec
-MOLC_VERSION := 0.4.1
+MOLC_VERSION := 0.5.0
 PROTOCOL_HEADER := build/blockchain.h
 PROTOCOL_SCHEMA := build/blockchain.mol
 PROTOCOL_VERSION := d75e4c56ffa40e17fd2fe477da3f98c5578edcd1
-PROTOCOL_URL := https://raw.githubusercontent.com/nervosnetwork/ckb/${PROTOCOL_VERSION}/util/types/schemas/blockchain.mol
+PROTOCOL_DIR := ../../shared/schema/blockchain.mol
+
+#PROTOCOL_URL := https://raw.githubusercontent.com/nervosnetwork/ckb/${PROTOCOL_VERSION}/util/types/schemas/blockchain.mol
 
 # docker pull nervos/ckb-riscv-gnu-toolchain:gnu-bionic-20191012
 BUILDER_DOCKER := nervos/ckb-riscv-gnu-toolchain@sha256:aae8a3f79705f67d505d1f1d5ddc694a4fd537ed1c7e9622420a470d59ba2ec3
 
-all: build/htlc build/secp256k1_blake2b_sighash_all_lib.so build/or build/simple_udt
+all:  build/htlc build/secp256k1_blake2b_sighash_all_lib.so build/or build/simple_udt build/hello_world build/sudt build/type_id
 
 all-via-docker: ${PROTOCOL_HEADER} build/or.h
 	docker run --rm -v `pwd`:/code ${BUILDER_DOCKER} bash -c "cd /code && make"
@@ -24,6 +26,19 @@ build/htlc: c/htlc.c build/secp256k1_blake2b_sighash_all_lib.h
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $<
 	$(OBJCOPY) --only-keep-debug $@ $@.debug
 	$(OBJCOPY) --strip-debug --strip-all $@
+
+build/sudt: c/sudt.c
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $<
+	$(OBJCOPY) --strip-debug --strip-all $@
+
+build/type_id: c/type_id.c
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $<
+	$(OBJCOPY) --strip-debug --strip-all $@
+
+build/hello_world: c/hello_world.c
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $<
+	$(OBJCOPY) --strip-debug --strip-all $@
+
 
 build/secp256k1_blake2b_sighash_all_lib.h: build/generate_data_hash build/secp256k1_blake2b_sighash_all_lib.so
 	$< build/secp256k1_blake2b_sighash_all_lib.so secp256k1_blake2b_sighash_all_data_hash > $@
@@ -74,7 +89,7 @@ ${PROTOCOL_HEADER}: ${PROTOCOL_SCHEMA}
 	${MOLC} --language c --schema-file $< > $@
 
 ${PROTOCOL_SCHEMA}:
-	curl -L -o $@ ${PROTOCOL_URL}
+	cp ${PROTOCOL_DIR} $@
 
 install-tools:
 	if [ ! -x "$$(command -v "${MOLC}")" ] \
